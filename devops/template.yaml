@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  chat-sam-api
+
+  SAM Template with Cognito Authentication
+
+Globals:
+  Function:
+    Timeout: 3
+    Runtime: python3.14
+    Layers:
+      - !Ref CommonLayer
+    Environment:
+      Variables:
+        USER_POOL_ID: !Ref CognitoUserPool
+        CLIENT_ID: !Ref CognitoUserPoolClient
+
+Resources:
+
+  CommonLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: common-package-LayerName
+      Description: boto3 and requests for all Function
+      ContentUri: ../layers/common/
+      CompatibleRuntimes:
+        - python3.14
+      RetentionPolicy: Delete
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: chat-sam-userpool  
+      UsernameAttributes:     # User can login with email 
+        - email
+      AutoVerifiedAttributes:   # Auto verify email after registration
+        - email
+      # Password rules
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: chat-sam-client
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH   # email + password login
+        - ALLOW_REFRESH_TOKEN_AUTH   # refresh token support
+
+
+  SamServerlessApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Dev
+      OpenApiVersion: 3.0.1
+      # Attach Cognito as Authorizer
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        #AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../auth/
+      Handler: app.lambda_handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:SignUp
+                - cognito-idp:AdminConfirmSignUp
+                - cognito-idp:InitiateAuth
+                - cognito-idp:GlobalSignOut
+              Resource: !GetAtt CognitoUserPool.Arn
+      # Auth routes — NO authorization needed (public)
+      Events:
+        Register:
+          Type: Api
+          Properties:
+            Path: /auth/register
+            Method: post
+            RestApiId: !Ref SamServerlessApi
+            Auth:
+              Authorizer: NONE     # Public route ✅
+        Login:
+          Type: Api
+          Properties:
+            Path: /auth/login
+            Method: post
+            RestApiId: !Ref SamServerlessApi
+            Auth:
+              Authorizer: NONE     # Public route ✅
+        Logout:
+          Type: Api
+          Properties:
+            Path: /auth/logout
+            Method: post
+            RestApiId: !Ref SamServerlessApi
+            Auth:
+              Authorizer: NONE     # Public route ✅
+
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../hello_world/
+      Handler: app.lambda_handler
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
+            RestApiId: !Ref SamServerlessApi
+
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway base URL"
+    Value: !Sub "https://${SamServerlessApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Dev"
+  UserPoolId:
+    Description: "Cognito User Pool ID"
+    Value: !Ref CognitoUserPool
+  UserPoolClientId:
+    Description: "Cognito User Pool Client ID"
+    Value: !Ref CognitoUserPoolClient
