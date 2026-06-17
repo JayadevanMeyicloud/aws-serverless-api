@@ -8,6 +8,9 @@ phases:
 
   pre_build:
     commands:
+      - echo "Current directory..."
+      - pwd
+      - ls
       - echo "Validating template..."
       - sam validate --template-file devops/template.yaml
       - echo "Installing layer dependencies..."
@@ -17,6 +20,8 @@ phases:
     commands:
       - echo "Building SAM application..."
       - sam build --template-file devops/template.yaml
+      - echo "Checking build output..."
+      - ls .aws-sam/build/                        # ← debug line
       - echo "Packaging SAM application..."
       - sam package
           --template-file .aws-sam/build/template.yaml
