@@ -7,8 +7,8 @@ phases:
 
   build:
     commands:
-      - sam validate
-      - sam build
+      - sam validate --template-file devops/template.yaml
+      - sam build  --template-file devops/template.yaml
 
 artifacts:
   files:
