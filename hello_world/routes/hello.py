@@ -29,7 +29,7 @@ def get_user_details(event):
     return success_response(
         200,
         {
-            "message": f"Hello, {email}!",
+            "message": f"Hello from Serverless, {email}!",
             "userId": sub
         }
     )

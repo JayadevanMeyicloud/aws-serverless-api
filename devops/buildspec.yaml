@@ -3,21 +3,38 @@ version: 0.2
 phases:
   install:
     commands:
+      - echo "Installing SAM CLI..."
       - pip install aws-sam-cli
 
   pre_build:
     commands:
-      - echo "Starting validation..."
+      - echo "Validating template..."
+      - sam validate --template-file devops/template.yaml
+      - echo "Installing layer dependencies..."
+      - pip install -r layers/common/requirements.txt -t layers/common/python/
 
   build:
     commands:
-      - sam validate --template-file devops/template.yaml
+      - echo "Building SAM application..."
       - sam build --template-file devops/template.yaml
+      - echo "Packaging SAM application..."
+      - sam package
+          --template-file .aws-sam/build/template.yaml
+          --output-template-file packaged.yaml
+          --resolve-s3
+          --s3-prefix sam-serverless-learnings
+          --region ap-south-1
 
   post_build:
     commands:
-      - echo "Build completed successfully"
+      - |
+        if [ "$CODEBUILD_BUILD_SUCCEEDING" = "1" ]; then
+          echo "✅ Build succeeded - packaged.yaml ready for deploy"
+        else
+          echo "❌ Build failed - check logs above"
+        fi
 
 artifacts:
   files:
-    - .aws-sam/build/**/*
+    - packaged.yaml
+  discard-paths: yes
