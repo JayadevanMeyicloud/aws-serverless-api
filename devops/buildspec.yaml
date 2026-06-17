@@ -8,14 +8,11 @@ phases:
   pre_build:
     commands:
       - echo "Starting validation..."
-      - python --version
 
   build:
     commands:
       - sam validate --template-file devops/template.yaml
       - sam build --template-file devops/template.yaml
-      - echo "===== ARTIFACTS ====="
-      - ls -R .aws-sam/build
 
   post_build:
     commands:
@@ -23,4 +20,4 @@ phases:
 
 artifacts:
   files:
-    - '**/*'
+    - .aws-sam/build/**/*
