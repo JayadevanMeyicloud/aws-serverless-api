@@ -5,10 +5,21 @@ phases:
     commands:
       - pip install aws-sam-cli
 
+  pre_build:
+    commands:
+      - echo "Starting validation..."
+      - python --version
+
   build:
     commands:
       - sam validate --template-file devops/template.yaml
-      - sam build  --template-file devops/template.yaml
+      - sam build --template-file devops/template.yaml
+      - echo "===== ARTIFACTS ====="
+      - ls -R .aws-sam/build
+
+  post_build:
+    commands:
+      - echo "Build completed successfully"
 
 artifacts:
   files:
